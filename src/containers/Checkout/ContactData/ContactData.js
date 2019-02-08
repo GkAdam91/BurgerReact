@@ -8,6 +8,7 @@ import Input from '../../../components/UI/Input/Input';
 import withErrorHandler from '../../../hoc/withErrorHandler/withErrorHandler';
 import * as actions from '../../../store/actions/index'
 import { connect } from 'react-redux';
+import { updateObject, checkValidity } from '../../../shared/utility';
 
 class ContactData extends Component {
     state = {
@@ -74,7 +75,8 @@ class ContactData extends Component {
                 },
                 value: '',
                 validation: {
-                    required: true
+                    required: true,
+                    isEmail: true
                 },
                 valid: false,
                 touched: false
@@ -93,11 +95,11 @@ class ContactData extends Component {
             },
         },
         formIsValid: false,
-          }
+    }
 
     orderHandler = (event) => {
         event.preventDefault();
-        
+
         const formData = {};
         for (let formElementIdentifier in this.state.orderForm) {
             formData[formElementIdentifier] = this.state.orderForm[formElementIdentifier].value;
@@ -106,40 +108,22 @@ class ContactData extends Component {
             ingredients: this.props.ings,
             price: this.props.price,
             orderData: formData,
+            userId: this.props.userId
         }
-        console.log('TESTING');
-        this.props.onOrderBurger(order);
-    }
-
-    checkValidity(value, rules) {
-        let isValid = true;
-
-        if (!rules) {
-            return true;
-        }
-        if (rules.required) {
-            isValid = value.trim() !== '' && isValid;
-        }
-        if (rules.minLength) {
-            isValid = value.length >= rules.minLength && isValid;
-        }
-        if (rules.maxLength) {
-            isValid = value.length <= rules.maxLength && isValid;
-        }
-        return isValid;
+        this.props.onOrderBurger(order, this.props.token);
     }
 
     inputChangedHandler = (event, inputIdentifier) => {
-        const updatedOrderForm = {
-            ...this.state.orderForm
-        }
-        const updateFormElement = {
-            ...updatedOrderForm[inputIdentifier]
-        }
-        updateFormElement.touched = true;
-        updateFormElement.value = event.target.value;
-        updateFormElement.valid = this.checkValidity(updateFormElement.value, updateFormElement.validation)
-        updatedOrderForm[inputIdentifier] = updateFormElement;
+        
+        const updateFormElement = updateObject(this.state.orderForm[inputIdentifier], {
+            value: event.target.value,
+            valid: checkValidity(event.target.value, this.state.orderForm[inputIdentifier].validation),
+            touched: true
+        });
+        const updatedOrderForm = updateObject(this.state.orderForm, {
+            [inputIdentifier]: updateFormElement
+        });
+
 
         let formIsValid = true;
         for (let inputIdentifier in updatedOrderForm) {
@@ -157,7 +141,7 @@ class ContactData extends Component {
                 config: this.state.orderForm[key]
             })
         }
-        
+
         let form = (
             <form onSubmit={this.orderHandler}>
                 {formElementsArray.map(formElement => (
@@ -174,7 +158,7 @@ class ContactData extends Component {
                 <Button btnType='Success' disabled={!this.state.formIsValid} >Order</Button>
             </form>
         );
-        
+
         if (this.props.loading) {
             form = <Spinner />;
         }
@@ -192,13 +176,15 @@ const mapStateToProps = state => {
     return {
         ings: state.burgerBuilder.ingredients,
         price: state.burgerBuilder.totalPrice,
-        loading: state.orders.loading
+        loading: state.orders.loading,
+        token: state.auth.token,
+        userId: state.auth.userId
     }
 }
 
 const mapDispatchToProps = dispatch => {
     return {
-        onOrderBurger: (orderData) => dispatch(actions.purchaseBurger(orderData))
+        onOrderBurger: (orderData, token) => dispatch(actions.purchaseBurger(orderData, token))
     };
 };
 
